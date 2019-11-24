@@ -6,18 +6,21 @@ class drop_op(nn.Module):
         super(drop_op, self).__init__()
         assert (drop_type in (0, 1, 2, 3) and 0.<=drop_rate<1.)
         self.drop_type, self.keep_rate = drop_type, 1.-drop_rate
+        if drop_rate == 0.:
+            self.drop_op = nn.Sequential();return
         if drop_type == 0:
             self.drop_op = nn.Dropout(p=drop_rate, inplace=inplace)
         elif drop_type == 1:
             self.drop_op = nn.Dropout2d(p=drop_rate, inplace=inplace)
 
     def forward(self, x):
+        if self.keep_rate == 1.: return x
         if self.drop_type in (0, 1): return self.drop_op(x)
         # drop-branch/layer, x in [b_0, b_1, ...], b_i: B*C_i*H*W
         if self.training:
-            mask = torch.FloatTensor(1, x.size(1), 1, 1, device=x.device).\
+            mask = torch.FloatTensor(len(x)).to(x[0].device).\
                 bernoulli_(self.keep_rate)*(1./self.keep_rate)
-            x = list(map(lambda b: b.mul_(mask), x))
+            x = [x[idx]*mask[idx] for idx in range(len(x))]
         return torch.cat(x, dim=1)
 
 class Norm2d(nn.Module):
@@ -46,15 +49,11 @@ class Norm2d(nn.Module):
                 var = input.var([0, 2, 3], unbiased=False)
                 n = input.numel()/input.size(1)
                 if self.training:
-                    self.train_running_mean = self.momentum*mean+\
-                                        (1-self.momentum)*self.train_running_mean
-                    self.train_running_var = self.momentum*var*n/(n-1)+\
-                                        (1-self.momentum)*self.train_running_var
+                    self.train_running_mean.mul_(1 - self.momentum).add_(self.momentum*mean)
+                    self.train_running_var.mul_(1-self.momentum).add_(self.momentum*var*n/(n-1))
                 else:
-                    self.test_running_mean = self.momentum*mean+\
-                                        (1-self.momentum)*self.test_running_mean
-                    self.test_running_var = self.momentum*var*n/(n-1)+\
-                                        (1-self.momentum)*self.test_running_var
+                    self.test_running_mean.mul_(1 - self.momentum).add_(self.momentum*mean)
+                    self.test_running_var.mul_(1-self.momentum).add_(self.momentum*var*n/(n-1))
         return self.norm(input)
 
 def norm2d_track_stats(model, is_track):
@@ -72,13 +71,14 @@ def norm2d_stats(model):
 class conv_block(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, block_type=0,
                  use_gn=False, gn_groups=8,  drop_type=0, drop_rate=0.,
-                 stride=1, padding=0, groups=1, bias=False):
+                 stride=1, padding=0, groups=1, bias=False, track_stats=False):
         super(conv_block, self).__init__()
         self.relu = nn.ReLU(inplace=True)
-        self.norm = Norm2d(in_channels, use_gn, gn_groups, drop_rate>0.)
         self.drop = drop_op(drop_type, drop_rate)
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size,
                 groups=groups, stride=stride, padding=padding, bias=bias)
+        bn_channels = in_channels if block_type in [0, 1] else out_channels
+        self.norm = Norm2d(bn_channels, use_gn, gn_groups, track_stats)
 
         if block_type==0:       # bn/gn-relu-drop-conv, recommended
             self.ops = nn.Sequential(self.norm, self.relu,

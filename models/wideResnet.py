@@ -9,14 +9,17 @@ def conv3x3(in_planes, out_planes, stride=1):
 class wide_basic(nn.Module):
     def __init__(self, in_planes, planes, args, stride=1):
         super(wide_basic, self).__init__()
-        self.block1 = conv_block(in_planes, planes, kernel_size=3, block_type=args.block_type, use_gn=args.use_gn,
-                        gn_groups=args.gn_groups, drop_type=args.drop_type, drop_rate=args.drop_rate, padding=1)
-        self.block2 = conv_block(planes, planes, kernel_size=3, block_type=args.block_type, use_gn=args.use_gn,
-                        gn_groups=args.gn_groups, drop_type=args.drop_type, drop_rate=0, stride=stride, padding=1)
+        self.block1 = conv_block(in_planes, planes, kernel_size=3, block_type=args.block_type,
+                                 use_gn=args.use_gn, gn_groups=args.gn_groups, drop_type=args.drop_type,
+                                 drop_rate=args.drop_rate, padding=1, track_stats=args.report_ratio)
+        self.block2 = conv_block(planes, planes, kernel_size=3, block_type=args.block_type,
+                                 use_gn=args.use_gn, gn_groups=args.gn_groups, drop_type=args.drop_type,
+                                 drop_rate=0, stride=stride, padding=1, track_stats=False)
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != planes:
-            self.shortcut = nn.Sequential(nn.Conv2d(in_planes, planes, kernel_size=1, stride=stride, bias=True),)
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_planes, planes, kernel_size=1, stride=stride, bias=True),)
 
     def forward(self, x):
         out = self.block1(x)
@@ -25,10 +28,10 @@ class wide_basic(nn.Module):
         return out
 
 class WideResNet(nn.Module):
-    def __init__(self, depth, widen_factor, args):
+    def __init__(self, args, widen_factor=1.):
         super(WideResNet, self).__init__()
-        assert ((depth-4)%6 ==0), 'WideResnet depth should be 6n+4'
-        n = int((depth-4)/6)
+        assert ((args.depth-4)%6 ==0), 'WideResnet depth should be 6n+4'
+        n = int((args.depth-4)/6)
         k = widen_factor
 
         self.in_planes = 16
@@ -64,24 +67,26 @@ class WideResNet(nn.Module):
         return out
 
 def get_wrn(args):
-    return WideResNet(args.depth, args.arg1, args)
+    return WideResNet(args, args.arg1)
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='WideResNet')
     args = parser.parse_args()
+    args.depth = 28
     args.class_num = 10
     args.block_type = 1
     args.use_gn = True
     args.gn_groups = 16
     args.drop_type = 0
-    args.drop_rate = 0.3
+    args.drop_rate = 0.0
+    args.report_ratio = True
 
-    net=WideResNet(28, 10, args)
+    net=WideResNet(args, 10)
     y = net(torch.randn(1,3,32,32))
     print(y.size())
     print(net)
-
+    print(sum([p.data.nelement() for p in net.parameters()]))
 
     from convBlock import Norm2d, norm2d_stats, norm2d_track_stats
 

@@ -20,7 +20,8 @@ parser = argparse.ArgumentParser(description='Dropout CIFAR10/100, SVHN, ImageNe
 parser.add_argument('--exp_name', default='test', type=str, help='exp name used to store log and checkpoint')
 parser.add_argument('--net_type', default='vgg', type=str, help='network type: vgg, resnet, resnext, densenet etc')
 parser.add_argument('--depth', type=int, default=100, help='depth of network')
-parser.add_argument('--arg1', type=int, default=10, help='addition arg, e.g. widen_factor')
+parser.add_argument('--arg1', type=int, default=10, help='addition arg1, e.g. widen_factor')
+parser.add_argument('--arg2', type=int, default=64, help='addition arg2, e.g. base_width (ResNeXt)')
 
 parser.add_argument('--block_type', type=int, default=1, help='specify block_type (default: 1)')
 parser.add_argument('--use_gn', action='store_true', default=False, help='whether to use group norm (default: False)')
@@ -35,6 +36,7 @@ parser.add_argument('--epoch', type=int, default=300, help='number of epochs to 
 parser.add_argument('--start_epoch', default=0, type=int, help='start epoch number (resume training)')
 
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
+parser.add_argument('--nesterov', action='store_true', default=False, help='whether to use nesterov (default: False)')
 parser.add_argument('--weight_decay', default=5e-4, type=float, help='weight decay (default: 1e-4)')
 
 parser.add_argument('--dataset', type=str, default='cifar10', help='dataset name for data_loader')
@@ -64,6 +66,9 @@ def creat_model(print_logger):
     print_logger.info("=> creating model '{}'".format(args.net_type))
     if args.dataset.startswith('cifar'):
         model_map = {'wrn': get_wrn,
+                     'resnet': get_resnet,
+                     'densenet': get_densenet,
+                     'resnext': get_resnext,
                      }
     elif args.dataset == 'imagenet':
         model_map = {'wrn': None,
@@ -94,7 +99,7 @@ def main():
     model = creat_model(plogger)
     criterion = nn.CrossEntropyLoss().cuda()
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),
-                args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+                args.lr, momentum=args.momentum, weight_decay=args.weight_decay, nesterov=args.nesterov)
     scheduler = lr_sheduler_map[args.lr_scheduler](optimizer)
 
     # resume from checkpoint

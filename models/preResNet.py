@@ -85,29 +85,3 @@ class preResNet(nn.Module):
 
 def get_resnet(args):
     return preResNet(args, args.arg1)
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(description='PreResNet')
-    args = parser.parse_args()
-    args.depth=110
-    args.class_num = 10
-    args.block_type = 0
-    args.use_gn = False
-    args.gn_groups = 16
-    args.drop_type = 1
-    args.drop_rate = 0.1
-    args.report_ratio = True
-
-    net = preResNet(args)
-    y = net((torch.randn(1, 3, 32, 32)))
-    print(y.size())
-    print(net)
-    print(sum([p.data.nelement() for p in net.parameters()]))
-
-    from convBlock import Norm2d, norm2d_stats, norm2d_track_stats
-
-    # norm2d_track_stats(net, False)
-    mean, var = norm2d_stats(net)
-    print(mean)
-    print(var)

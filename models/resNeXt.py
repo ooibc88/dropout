@@ -65,30 +65,3 @@ class ResNeXt(nn.Module):
 
 def get_resnext(args):
     return ResNeXt(args, args.arg1, args.arg2)
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(description='ResNeXt')
-    args = parser.parse_args()
-    args.depth = 29
-    args.class_num = 10
-    args.block_type = 3
-    args.use_gn = False
-    args.gn_groups = 8
-    args.drop_type = 1
-    args.drop_rate = 0.1
-    args.report_ratio = True
-
-    net = ResNeXt(args, 8, 64)
-    print(net)
-    print(sum([p.data.nelement() for p in net.parameters()]))
-    y = net(torch.randn(1,3,32,32))
-    print(y.size())
-
-    from convBlock import Norm2d, norm2d_stats, norm2d_track_stats
-
-    # norm2d_track_stats(net, False)
-    mean, var = norm2d_stats(net)
-    print(mean, len(mean))
-    print(var)
-    nn.Module().parameters()

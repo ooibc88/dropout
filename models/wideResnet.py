@@ -68,29 +68,3 @@ class WideResNet(nn.Module):
 
 def get_wrn(args):
     return WideResNet(args, args.arg1)
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(description='WideResNet')
-    args = parser.parse_args()
-    args.depth = 28
-    args.class_num = 10
-    args.block_type = 1
-    args.use_gn = True
-    args.gn_groups = 16
-    args.drop_type = 0
-    args.drop_rate = 0.0
-    args.report_ratio = True
-
-    net=WideResNet(args, 10)
-    y = net(torch.randn(1,3,32,32))
-    print(y.size())
-    print(net)
-    print(sum([p.data.nelement() for p in net.parameters()]))
-
-    from convBlock import Norm2d, norm2d_stats, norm2d_track_stats
-
-    # norm2d_track_stats(net, False)
-    mean, var = norm2d_stats(net)
-    print(mean)
-    print(var)

@@ -102,31 +102,3 @@ class DenseNet(nn.Module):
 # DenseNet3(depth=190, num_classes=10., growth_rate=40, reduction=0.5, bottleneck=True, drop_rate=0.2)
 def get_densenet(args):
     return DenseNet(args, args.arg1)
-
-if __name__ == '__main__':
-    import argparse
-
-    parser = argparse.ArgumentParser(description='WideResNet')
-    args = parser.parse_args()
-    args.depth = 100
-    args.class_num = 10
-    args.block_type = 0
-    args.use_gn = False
-    args.gn_groups = 6
-    args.drop_type = 1
-    args.drop_rate = 0.1
-    args.report_ratio = True
-    args.arg1 = 12
-
-    net = DenseNet(args, args.arg1)
-    y = net(torch.randn(1, 3, 32, 32))
-    print(y.size())
-    print(net)
-    print(sum([p.data.nelement() for p in net.parameters()]))
-
-    from convBlock import Norm2d, norm2d_stats, norm2d_track_stats
-
-    # norm2d_track_stats(net, False)
-    mean, var = norm2d_stats(net)
-    print(len(mean), mean)
-    print(var)
